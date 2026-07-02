@@ -4,7 +4,7 @@ import AccountTable from "./components/AccountTable";
 import AccountModal from "./components/AccountModal";
 import "./App.css";
 
-const API = "/api";
+const API = "https://collections-dashboard-api.onrender.com";
 
 export default function App() {
   const [accounts, setAccounts] = useState([]);
