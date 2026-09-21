@@ -1,7 +1,8 @@
 # PART 3: The Seed File (seed.py) — Stocking the Fridge
 # This script is only run once manually to load test data.
+from datetime import datetime, date, timedelta
 from app import app, db
-from models import Account
+from models import Account, Note
 
 ACCOUNTS = [
     {"name": "Marcus Johnson",     "balance": 1240.50, "days_past_due": 45,  "status": "delinquent",  "phone": "555-201-0001", "email": "marcus.j@email.com"},
@@ -21,10 +22,63 @@ ACCOUNTS = [
     {"name": "Ahmed Hassan",       "balance": 780.00,  "days_past_due": 38,  "status": "delinquent",  "phone": "555-201-0015", "email": "ahmed.h@email.com"},
 ]
 
+# Sample call-log entries, keyed by the account's name so they attach to the
+# right record regardless of insertion order. Mirrors a real collector's log:
+# a mix of no-answers, promises, refusals, and a completed payment.
+NOW = datetime.utcnow()
+
+NOTES_BY_NAME = {
+    "Marcus Johnson": [
+        {"contact_date": NOW - timedelta(days=6), "outcome": "no_answer",
+         "note_text": "Called cell, no answer, no voicemail box set up."},
+        {"contact_date": NOW - timedelta(days=2), "outcome": "promise_to_pay",
+         "note_text": "Spoke with Marcus directly. Says he gets paid Friday and will pay the full balance.",
+         "promise_amount": 1240.50, "promise_date": (date.today() + timedelta(days=5))},
+    ],
+    "Priya Patel": [
+        {"contact_date": NOW - timedelta(days=10), "outcome": "left_message",
+         "note_text": "Left voicemail requesting a callback regarding the account."},
+        {"contact_date": NOW - timedelta(days=3), "outcome": "promise_to_pay",
+         "note_text": "Priya called back. Can only pay half now, rest next month.",
+         "promise_amount": 1050.00, "promise_date": (date.today() + timedelta(days=10))},
+    ],
+    "James O'Brien": [
+        {"contact_date": NOW - timedelta(days=4), "outcome": "refused_to_pay",
+         "note_text": "James states he disputes the balance and will not pay until it's reviewed."},
+        {"contact_date": NOW - timedelta(days=1), "outcome": "disputed",
+         "note_text": "Sent dispute paperwork to compliance for review per his request."},
+    ],
+    "Robert Thompson": [
+        {"contact_date": NOW - timedelta(days=1), "outcome": "promise_to_pay",
+         "note_text": "Robert committed to a partial payment plan, first installment this week.",
+         "promise_amount": 500.00, "promise_date": (date.today() + timedelta(days=3))},
+    ],
+    "Ahmed Hassan": [
+        {"contact_date": NOW - timedelta(days=8), "outcome": "promise_to_pay",
+         "note_text": "Promised payment by end of week.",
+         "promise_amount": 780.00, "promise_date": (date.today() - timedelta(days=1))},
+        {"contact_date": NOW - timedelta(hours=6), "outcome": "payment_made",
+         "note_text": "Payment received in full over the phone. Confirmation #88213.",
+         },
+    ],
+}
+
 with app.app_context():
     db.drop_all()  # Drops all tables (like emptying the fridge)
-    db.create_all()  # Rebuilds the tables based on your models (like stocking the fridge)       
+    db.create_all()  # Rebuilds the tables based on your models (like stocking the fridge)
+    accounts_by_name = {}
     for data in ACCOUNTS:
-        db.session.add(Account(**data))  # **data unpacks the dictionary into keyword arguments
-    db.session.commit()# Commits all the changes to the database
-    print(f"seeded {len(ACCOUNTS)} accounts")
+        account = Account(**data)  # **data unpacks the dictionary into keyword arguments
+        db.session.add(account)
+        accounts_by_name[data["name"]] = account
+    db.session.flush()  # assigns IDs without committing yet, so notes can reference them
+
+    note_count = 0
+    for name, notes in NOTES_BY_NAME.items():
+        account = accounts_by_name[name]
+        for note_data in notes:
+            db.session.add(Note(account_id=account.id, **note_data))
+            note_count += 1
+
+    db.session.commit()  # Commits all the changes to the database
+    print(f"seeded {len(ACCOUNTS)} accounts and {note_count} notes")

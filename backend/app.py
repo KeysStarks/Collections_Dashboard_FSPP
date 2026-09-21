@@ -1,9 +1,10 @@
 # PART 2: Flask (app.py) — The Kitchen That Listens
 # Importing Tools (Ingredients
 import os
+from datetime import datetime, date
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from models import db, Account 
+from models import db, Account, Note, OUTCOMES
 
 # Ceate Application (Kitchen)
 app = Flask(__name__)
@@ -125,9 +126,75 @@ with app.app_context():
         db.session.delete(account)
         db.session.commit()
         return jsonify({"message": f"Account {account_id} deleted."}), 200
-    
-    
-    
+
+    # ---- Notes / Call Log -------------------------------------------------
+    # This is the actual collector's workflow: every call or contact attempt
+    # gets logged here, along with the outcome (no answer, promise to pay,
+    # payment made, etc.) and, when relevant, the promised amount and date.
+
+    @app.route("/accounts/<int:account_id>/notes", methods=["GET"])
+    def get_notes(account_id):
+        account = Account.query.get_or_404(account_id)
+        return jsonify([n.to_dict() for n in account.notes])
+
+    @app.route("/accounts/<int:account_id>/notes", methods=["POST"])
+    def create_note(account_id):
+        account = Account.query.get_or_404(account_id)
+        data = request.get_json()
+
+        if not data or not data.get("note_text"):
+            return jsonify({"error": "Note text is required"}), 400
+
+        outcome = data.get("outcome", "other")
+        if outcome not in OUTCOMES:
+            return jsonify({"error": f"Outcome must be one of {OUTCOMES}"}), 400
+
+        # contact_date defaults to right now, but a collector logging a call
+        # after the fact can backdate it.
+        contact_date = datetime.utcnow()
+        if data.get("contact_date"):
+            try:
+                contact_date = datetime.fromisoformat(data["contact_date"])
+            except ValueError:
+                return jsonify({"error": "contact_date must be an ISO datetime string"}), 400
+
+        promise_amount = None
+        promise_date_value = None
+        if outcome == "promise_to_pay":
+            if data.get("promise_amount") is not None:
+                promise_amount = float(data["promise_amount"])
+            if data.get("promise_date"):
+                try:
+                    promise_date_value = date.fromisoformat(data["promise_date"])
+                except ValueError:
+                    return jsonify({"error": "promise_date must be YYYY-MM-DD"}), 400
+
+        note = Note(
+            account_id=account.id,
+            contact_date=contact_date,
+            outcome=outcome,
+            note_text=data["note_text"],
+            promise_amount=promise_amount,
+            promise_date=promise_date_value,
+        )
+        db.session.add(note)
+
+        # A payment promise or a completed payment is meaningful enough to also
+        # bump the account's status automatically — saves the collector a step.
+        if outcome == "payment_made" and data.get("mark_current"):
+            account.status = "current"
+            account.days_past_due = 0
+
+        db.session.commit()
+        return jsonify(note.to_dict()), 201
+
+    @app.route("/notes/<int:note_id>", methods=["DELETE"])
+    def delete_note(note_id):
+        note = Note.query.get_or_404(note_id)
+        db.session.delete(note)
+        db.session.commit()
+        return jsonify({"message": f"Note {note_id} deleted."}), 200
+
     if __name__ == "__main__":
         app.run(debug=True, port=5000)
             

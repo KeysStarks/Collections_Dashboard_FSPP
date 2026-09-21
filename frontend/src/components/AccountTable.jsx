@@ -11,7 +11,13 @@ const fmt = (n) =>
     n,
   );
 
-export default function AccountTable({ accounts, loading, onEdit, onDelete }) {
+export default function AccountTable({
+  accounts,
+  loading,
+  onEdit,
+  onDelete,
+  onOpenNotes,
+}) {
   if (loading) {
     return (
       <div className="table-card">
@@ -68,6 +74,9 @@ export default function AccountTable({ accounts, loading, onEdit, onDelete }) {
                   </button>
                   <button className="btn-danger" onClick={() => onDelete(a.id)}>
                     Delete
+                  </button>
+                  <button className="btn-ghost" onClick={() => onOpenNotes(a)}>
+                    Notes
                   </button>
                 </td>
               </tr>

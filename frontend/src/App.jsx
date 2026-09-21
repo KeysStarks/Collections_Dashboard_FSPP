@@ -13,6 +13,33 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState({ open: false, account: null });
+  const [notesPanel, setNotesPanel] = useState({
+    open: false,
+    account: null,
+    notes: [],
+  });
+  const [noteForm, setNoteForm] = useState({
+    outcome: "other",
+    note_text: "",
+    promise_amount: 0,
+    promise_date: "",
+  });
+
+  const handleNoteChange = (e) => {
+    const { name, value } = e.target;
+    setNoteForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleNoteSubmit = async (e) => {
+    e.preventDefault();
+    await createNote(notesPanel.account.id, noteForm);
+    setNoteForm({
+      outcome: "other",
+      note_text: "",
+      promise_amount: 0,
+      promise_date: "",
+    });
+  };
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -41,6 +68,32 @@ export default function App() {
       setStats(data);
     } catch {
       /* non-fatal */
+    }
+  }, []);
+
+  const createNote = async (accountId, noteData) => {
+    try {
+      const res = await fetch(`${API}/accounts/${accountId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(noteData),
+      });
+      if (!res.ok) throw new Error("Failed to create note");
+      const data = await res.json();
+      setNotesPanel((prev) => ({ ...prev, notes: [...prev.notes, data] }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchNotes = useCallback(async (accountId) => {
+    try {
+      const res = await fetch(`${API}/accounts/${accountId}/notes`);
+      if (!res.ok) throw new Error("Failed to load notes");
+      const data = await res.json();
+      setNotesPanel((prev) => ({ ...prev, notes: data }));
+    } catch (err) {
+      console.error(err);
     }
   }, []);
 
@@ -111,8 +164,69 @@ export default function App() {
           loading={loading}
           onEdit={(account) => setModal({ open: true, account })}
           onDelete={handleDelete}
+          onOpenNotes={(account) => {
+            setNotesPanel({ open: true, account, notes: [] });
+            fetchNotes(account.id);
+          }}
         />
       </main>
+
+      {notesPanel.open && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h2 className="modal-title">
+                Notes for {notesPanel.account?.name}
+              </h2>
+              <button
+                className="modal-close"
+                onClick={() =>
+                  setNotesPanel({ open: false, account: null, notes: [] })
+                }
+              >
+                ❎
+              </button>
+            </div>
+            <form onSubmit={handleNoteSubmit}>
+              <select
+                name="outcome"
+                value={noteForm.outcome}
+                onChange={handleNoteChange}
+              >
+                <option value="other">Other</option>
+                <option value="promise_to_pay">Promise Made</option>
+                <option value="payment_made">Payment Received</option>
+              </select>
+              <input
+                type="text"
+                name="note_text"
+                value={noteForm.note_text}
+                onChange={handleNoteChange}
+                placeholder="Enter note text"
+              />
+              <input
+                type="number"
+                name="promise_amount"
+                value={noteForm.promise_amount}
+                onChange={handleNoteChange}
+                placeholder="Enter promise amount"
+              />
+              <input
+                type="date"
+                name="promise_date"
+                value={noteForm.promise_date}
+                onChange={handleNoteChange}
+              />
+              <button type="submit">Add Note</button>
+            </form>
+            <ul>
+              {notesPanel.notes.map((note, index) => (
+                <li key={index}>{note.note_text}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {modal.open && (
         <AccountModal
