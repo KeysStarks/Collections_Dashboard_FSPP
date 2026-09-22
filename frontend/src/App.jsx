@@ -71,6 +71,19 @@ export default function App() {
     }
   }, []);
 
+  const deleteNote = async (noteId) => {
+    try {
+      const res = await fetch(`${API}/notes/${noteId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete note");
+      setNotesPanel((prev) => ({
+        ...prev,
+        notes: prev.notes.filter((n) => n.id !== noteId),
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const createNote = async (accountId, noteData) => {
     try {
       const res = await fetch(`${API}/accounts/${accountId}/notes`, {
@@ -196,6 +209,11 @@ export default function App() {
                 <option value="other">Other</option>
                 <option value="promise_to_pay">Promise Made</option>
                 <option value="payment_made">Payment Received</option>
+                <option value="no_answer">No Answer</option>
+                <option value="left_message">Left Message</option>
+                <option value="refused_to_pay">Refused to Pay</option>
+                <option value="disputed">Disputed</option>
+                <option value="wrong_number">Wrong Number</option>
               </select>
               <input
                 type="text"
@@ -221,7 +239,10 @@ export default function App() {
             </form>
             <ul>
               {notesPanel.notes.map((note, index) => (
-                <li key={index}>{note.note_text}</li>
+                <li key={index}>
+                  {note.note_text} - {note.outcome}
+                  <button onClick={() => deleteNote(note.id)}>Delete</button>
+                </li>
               ))}
             </ul>
           </div>
