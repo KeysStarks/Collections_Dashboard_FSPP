@@ -2,6 +2,12 @@
 
 A full-stack account receivables management dashboard built with Flask and React.
 
+## Screenshots
+
+![Dashboard with the notes panel open, showing a contact/call log for an account](docs/notes-panel.png)
+
+![Outcome dropdown for logging a contact attempt](docs/outcome-dropdown.png)
+
 ## Features
 
 - View all accounts with balance, days past due, and status
@@ -10,6 +16,7 @@ A full-stack account receivables management dashboard built with Flask and React
 - Add new accounts
 - Edit existing accounts
 - Delete accounts
+- Contact / call log per account — log a call attempt with an outcome (No Answer, Left Message, Promise to Pay, Payment Made, Refused to Pay, Disputed, Wrong Number, Other), track promised payment amounts and dates, view the full history, and delete individual entries
 
 ## Tech Stack
 
@@ -48,13 +55,16 @@ App runs at `http://localhost:5173`
 
 ## API Endpoints
 
-| Method | Endpoint          | Description                                    |
-| ------ | ----------------- | ---------------------------------------------- |
-| GET    | `/accounts`       | List all accounts (optional `?status=` filter) |
-| GET    | `/accounts/stats` | Summary statistics                             |
-| POST   | `/accounts`       | Create a new account                           |
-| PUT    | `/accounts/:id`   | Update an account                              |
-| DELETE | `/accounts/:id`   | Delete an account                              |
+| Method | Endpoint              | Description                                    |
+| ------ | --------------------- | ---------------------------------------------- |
+| GET    | `/accounts`           | List all accounts (optional `?status=` filter) |
+| GET    | `/accounts/stats`     | Summary statistics                             |
+| POST   | `/accounts`           | Create a new account                           |
+| PUT    | `/accounts/:id`       | Update an account                              |
+| DELETE | `/accounts/:id`       | Delete an account                              |
+| GET    | `/accounts/:id/notes` | List an account's contact/call log             |
+| POST   | `/accounts/:id/notes` | Log a new contact attempt                      |
+| DELETE | `/notes/:id`          | Delete a logged note                           |
 
 ## Deployment
 
